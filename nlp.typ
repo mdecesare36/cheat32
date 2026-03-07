@@ -122,8 +122,8 @@ and vanish gradients. $c_t = f_t dot.o c_(t-1) + i_t dot.o g_t$ and
 $h_t=o_t dot.o tanh c_t$, where $g_t = tanh(W x_t + W h_(t-1) + b)$ and
 $i_t, f_t, o_t = sigma(W x_t + W h_(t-1) + b)$.
 #keyword[GRUs]: reset and update gate, no cell state.
-$g_t = tanh(W x_t + r_t(W h_(t-1) + b))$ and
-$h_t = (1-z_t)g_t + z_t h_(t-1)$.
+$g_t = tanh(W x_t + r_t dot.o (W h_(t-1)) + b)$ and
+$h_t = (1-z_t) dot.o g_t + z_t dot.o h_(t-1)$.
 
 #module[Machine Translation]
 #keyword[Statistical MT]: Uses a parallel dataset.
@@ -206,4 +206,68 @@ of $F(x)$.
 two-layer network. $"FNN"(x) = max(0, x W_1 + b)W_2 + b_2$. This is where
 knowledge is stored.
 #keyword[Positional encoding]: returns $"embedding" + "pos_enc"_i$.
-$"PE"_("pos", 2i) = sin("pos" / 10000^((2i)/d))$
+$"PE"_("pos", 2i) = sin("pos" / 10000^((2i)/d))$ and
+$"PE"_("pos", 2i+1) = cos("pos" / 10000^((2i)/d))$ where $"pos"$ is the
+position of the word and $i$ is the dimension index. Because $sin(a+b)$ is a
+linear combination of $sin(a)$ and $cos(b)$, this allows the model to attend
+to relative positions. Cosine distance of positional encodings decreases
+as relative distance increases.
+#keyword[Masking]: do not attend to future tokens. Before softmax set illegal
+connections in $Q K^top$ matrix to $-infinity$ so model cannot attend.
+#keyword[Cross attention]: when decoding a token, use attention to look at
+encoded words. Use key, value tensors from last encoder layer and send them to
+all decoder layers. Queries come from decoder.
+#keyword[Transformer training loop]: create source & target mask, run encoder,
+run decoder, output logits for token prediction.
+#keyword[Weight tying]: embedding matrix and output projection matrix in
+decoder are shared.
+
+#module[Pre-training Models]
+#keyword[ELMo]: multi-layered bi-directional LSTM. Predict word at each stage.
+Concatenate representations from
+both directions. ELMo can be concatenated to an existing embedding layer.
+#keyword[BERT]: encoder-only transformer model. Outputs encoding of input
+tokens. Primary BERT objective is
+#keyword[masked language modelling]: transform 15% of words. 80% replace with
+`[MASK]` token, 10% random word, 10% stay the same. Random words encourage
+the model to use context and improves robustness.
+Secondary pre-training objective is #keyword[next sentence prediction]:
+given two sentences, predict if they appeared in that order in the source.
+#keyword[Using BERT]: remove masked LM head. (1) use BERT to find
+representation vectors for downstream task. (2) Put minimal
+neural architecture on top of BERT & train the whole thing.
+(#keyword[fine-tuning]).
+#keyword[Classification]: add `[CLS]` token in input that represents
+whole sentence. Encoded representation is class label.
+Sentences can be separated by `[SEP]` token.
+#keyword[SpanBERT]: mask contiguous tokens
+#keyword[Sparse attention]: standard self-attention is $O(N^2)$. Global tokens
+are designated to attend to every other token, e.g. `[CLS]`.
+#keyword[Big bird] uses random, window (local) and global attention.
+#keyword[ERNIE]: improve understanding by integrating *knowledge graphs*.
+Model takes entity inputs. This is combined with tokens in a fusion layer.
+#keyword[ImageBERT]: encodes detected objects as additional tokens. Training
+objectives: masked language modelling, masked object classification, masked
+object feature prediction, classifying image & text relevancy.
+#keyword[ViLBERT]: two parallel BERT-like encoders (text & image)
+sharing key/value matrices through co-attention.
+#keyword[Encoder-decoder]: possible bjectives:
+prefix language modelling, sentence permutation deshuffling, BERT-style token
+masking, replace corrupted spans.
+#keyword[Instructional training]: prefix input with string describing task.
+Can generate training data using templates, then train on tasks phrased as
+instructions.
+#keyword[Decoders]: can use #keyword[fine tuning] layer, #keyword[zero-shot]
+(task as natural language), #keyword[one-shot] (zero-shot with example),
+#keyword[few-shot].
+We can use #keyword[step-by-step guiding], #keyword[chain-of-thought].
+#keyword[Retrieval-Augmented Generation (RAG)]: offload knowledge.
+Limitations of instruction fine-tuning: some tasks are open-ended and some
+mistakes are worse than others. Solutions: reinforcement learning with
+human feedback (pairwise comparisons).
+
+#module[PoS Tagging]
+useful for NER, pre-processing, semantic parsing.
+#keyword[Open class tag]: words with meaning. #keyword[Closed class tags]:
+functional words, no new additions. 
+#keyword[Naive baseline]: 
