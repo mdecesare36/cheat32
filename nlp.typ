@@ -1,7 +1,7 @@
 #set page("a4", flipped: true, columns: 3, margin: 0.5cm)
 #set columns(gutter: 0.25cm)
 #set text(font: "Noto Sans", size: 10pt)
-#set par(leading: 0.15cm)
+#set par(leading: 0.15cm, spacing: 0.2cm)
 
 #let module(body) = {
     set text(weight: "bold", fill: blue)
@@ -178,11 +178,11 @@ Use outputs of that model to train final model. Adds noise.
 #keyword[Batching/padding rules]: group similar-length sentences together
 in a batch, train model on smaller/simpler sentences first.
 
-#module[Transformers]
 #grid(
    columns: 2,
    image("transformer.png"),
    [
+    #module[Transformers]
     #keyword[Self Attention]:
     $"Attention"(Q,K,V) = "softmax"((Q K^top) / (sqrt(d_k)))V$. Large values of
     $d_k$ yields dot products large in magnitude, pushing softmax into regions
@@ -270,4 +270,56 @@ human feedback (pairwise comparisons).
 useful for NER, pre-processing, semantic parsing.
 #keyword[Open class tag]: words with meaning. #keyword[Closed class tags]:
 functional words, no new additions. 
-#keyword[Naive baseline]: 
+#keyword[HMM]: infer states (tags) from observations (words) with
+#text(fill: blue, [transition probabilities]), #text(fill: red, [emission probabilities])
+and init
+state. Assumptions: *Markov*; future tag depends only on current state (bigram
+of tags), *independence*: prob. of a word depends on current state, not on
+prev. words.
+$
+P(T|W)P(W) approx P(t_1)
+#text(fill: red, $P(w_1|t_1)$)
+#text(fill: blue, $P(t_2|t_1)$)
+...
+#text(fill: blue, $P(t_n|t_(n-1))$)
+#text(fill: red, $P(w_n|t_n)$)
+$
+#keyword[Naive]: take max. $P(t_i|t_(i-1))P(w_i|t_i)$ at each step.
+#keyword[Viterbi]: find overall best path. Track probability of being in state
+$j$ after $t$ observations, for every state. Recursive:
+$v_t (j) = max^N_(i=1) v_(t-1)(i) P(q_j|q_i) P(o_t|q_j)$.
+Alternative: #keyword[beam search].
+#keyword[MEMM]: use logistic regression classifier to model
+$P(t_i)$ using many features: $w_i$, $t_i$, word shape etc.
+Viterbi for MEMM: $v_t (j) = max_(i=1)^N v_(t-1) (i) P(q_j|q_i,o_t)$
+#keyword[RNN]: input word embeddings, output softmaxed tag probabilities.
+
+#module[Constituency Parsing]
+#keyword[CKY]: change grammar to CNF ($X arrow.r Y Z$ or $X arrow.r w$).
+$O(n^3 | |G|)$ $n$ is length of string, $|G|$ is size of CNF grammar.
+Cell `[i,j]` contains set of *non-terminals* that represent span i to j of
+input. This does not scale: too many possible parse trees in a comprehensive
+grammar.
+#keyword[Statistical parsing]: find most likely parse. Learn with
+#keyword[tree banks]. Augment grammar with probability of each rule. Pick
+most probable parse tree: $"argmax"_(t in cal(T)(s)) P(t)$
+#keyword[Probabilistic CKY]: dynamic table $pi[i,j,X]$ = max prob. of
+rule $X$ spanning $i...j$. Final result is $pi[1,n,S]$.
+Issues: *independence* assump. (word #sym.arrow.l tag), no lexical
+conditioning. Fixes: split non-terminals into types, lexicalised PCFG.
+#keyword[Precision]: #num correct constituents #sym.in hyp #sym.div total #num
+constituents #sym.in hyp.
+#keyword[Recall]: #num correct constituents #sym.in hyp #sym.div total #num
+constituents in ref.
+#keyword[Lexicalised PCFG]: each rule has a head. Use affinity between head
+words.
+
+#module[Dependency Parsing] connect head to dependent.
+Advantages: languages with free word order. Form a *tree*.
+#keyword[Projective]: no crossing dependency arcs when words laid out in
+linear order. $forall ("head", "dep") exists$ path from head to every word
+betewen head & dep.
+#keyword[MaltParser]: stack #sym.sigma, buffer #sym.beta, arcs.
+Actions: shift, left arc, right arc. Each action predicted by ML classifier.
+#keyword[Acc/Prec/Rec]: use overlapping dependencies.
+#keyword[Neural parsing]: encoder-decoder translation to linearised tree.
