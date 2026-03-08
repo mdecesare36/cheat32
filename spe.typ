@@ -21,6 +21,7 @@
 ))
 ]
 
+// Part 1
 #module[Introduction]
 #keyword[SWE Triangle]: general - maintainable - fast.
 #keyword[SMART]: Specific Measurable Acceptable Realisable Thorough.
@@ -64,4 +65,109 @@ memory operations.
 Fixed #num of registers. Often buggy, poorly documented, can have bad accuracy.
 #keyword[Pipeline]: Fetch #sym.arrow.r Decode #sym.arrow.r Execute
 #sym.arrow.r Memory #sym.arrow.r Write.
-#image("bottleneck_analysis.png")
+#keyword[Control dependency stall]: e.g. branch misprediction causing
+pipeline flush.
+#keyword[Resource stall]: execution unit (e.g. ALU) not available. Long
+instructions can also cause pipeline bubbles.
+#keyword[Frontend-bound]: usually control-flow dependency pipeline flush
+or instruction cache miss.
+#keyword[Other stalls]: usually due to expensive ALU operations.
+#grid(
+    columns: 2,
+    image("bottleneck_analysis.png"),
+    [
+        #module[Modelling]
+        we want to know performance without running the system, for cost
+        estimation, provisioning systems and runtime optimisation/tuning.
+        #keyword[Numerical model]: based on empirical datapoints gathered
+        using *microbenchmarks*.
+    ]
+)
+#keyword[Microbenchmark]: small program designed to test specific portion of
+a system.
+Numerical models:  easy, based on ground truth, generalise poorly, lots of
+data needed for high-dimensional parameter spaces, limited insight.
+#keyword[Analytical models]: require understanding. Needs a *characteristic
+equation*. Can use #keyword[model fitting], e.g. linear regression.
+As stride varies, memory access time is given by:
+$
+T_"Mem" = sum_(i=o)^3 l_i dot.op min(1, s/B_i)
+$
+As array size changes, memory access is given by:
+$
+T_"Mem" = cases(
+    l_0 & "size"<C_1,
+    l_0 + l_1 & "size"<C_2,
+    l_0 + l_1 + l_2 & "size"<C_3,
+    l_0 + l_1 + l_2 + l_3 & "otherwise"
+)
+$
+#keyword[Sequential memory access]: reading $u$ words then skipping
+$(R.w - u)$ words $R.n$ times.
+#keyword[Random access]: with repetitive access to elements. We have $R.w$,
+$u$, $||R||$ and an additional parameter $r$ - the number of accesses.
+#keyword[Complex patterns]: define operators for sequential execution 
+$cal(P)_1 plus.o cal(P)_2$ and concurrent execution $cal(P)_1 dot.o cal(P)_2$.
+Example: $"s_trav"(R.w=1, u=1, R.n=1024) dot.o "rr_acc"(R.w=1, u=2, R.n=64,
+r=1024)$
+#keyword[Branch predictors]: CPU stores _pattern history table_ with four
+states: strongly not taken, weakly not taken, weakly taken, strongly taken.
+Branch misprediction rate is $P("pred_taken")dot.op P("act_not_taken") +
+P("pred_not_taken") dot.op P("act_taken")$. These probabilities can be found
+using the stationary distribution of the Markov model.
+
+#module[Efficient code]
+#keyword[Balanced system]: one without a bottleneck where all resources are
+equally utilised.
+#keyword[Amdahl's Second Law]: A *balanced* computer system needs 1 MB of main
+memory and 1 Mb/s of I/O bandwidth per MIPS of CPU performance.
+Balance is not constant: datatypes are larger today, CPUs have many
+coprocessors, cache lines are larger. Balance is also a function of code:
+impacted by hardware optimisations. Perfect balance is an unachievable ideal.
+There is no balanced system, only sections of balanced code.
+We distinguish four types of code: #keyword[balanced], #keyword[compute-bound],
+#keyword[latency-bound], #keyword[bandwidth-bound].
+#keyword[Compute-bound]: related to CPU efficiency. Main metric: wallclock
+time. Stall cycles are a good indicator and are caused by _hazards_: control
+hazards, structural hazards (structure of CPU, i.e. lack of execution
+resources), data hazards (operands not available in time). These hazards can
+be mitigated in hardware by making more resources available.
+#keyword[Speculative execution]: branch + jump prediction.
+#keyword[Superscalar execution]: execute instructions in parallel by having
+more than one pipeline.
+#keyword[Out-of-order execution]: after decoding, CPU identifies instruction
+dependencies, allowing an instruction to overtake those it doesn't depend on.
+#keyword[SIMD]. #keyword[VLIW]: compiler-controlled superscalar.
+#keyword[Partial evaluation]: inlining, constant folding, metaprogramming, ...
+#keyword[If-conversion]: change branching to branch-free code. Turns control
+dependencies to data dependencies. Not worthwhile for predictable code.
+#keyword[Data hazard]: pipeline stall due to cache miss (capacity miss or
+compulsory miss).
+
+#grid(
+    columns: 2,
+    image("memory_optimisations.png"),
+    [
+        #keyword[Hardware prefetching]: speculatively load next cache line,
+        recognising patterns like adjacent cache lines, strides, ...
+        #keyword[Software prefetching]: hint using
+        `__builtin_prefetch(void *addr)`
+    ]
+)
+
+#keyword[Cache-line utilisation] = data used by instructions #sym.div data
+loaded into cache.
+#keyword[Thrashing]: can be fixed using #keyword[loop tiling].
+#keyword[MESI]: Modified, Exclusive, Shared, Invalid.
+#keyword[False sharing]: another control-flow hazard.
+
+#pagebreak()
+
+// Part 2
+#module[Multi-Core and Parallelism]
+#keyword[Amdahl's Law]:
+$
+"Speedup"(p,s) = 1 / ((1-p) + p/s)
+$
+#keyword[False sharing]: parallel access to separate variables that live in
+the same cache line.
