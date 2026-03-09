@@ -169,5 +169,112 @@ loaded into cache.
 $
 "Speedup"(p,s) = 1 / ((1-p) + p/s)
 $
+#keyword[Synchronisation primitives]: `std::mutex`, `std::unique_lock`,
+`std::lock_guard`, `std::counting_semaphore`, `std::binary_semaphore`,
+`std::shared_lock`, `std::condition_variable`, `std::barrier`.
 #keyword[False sharing]: parallel access to separate variables that live in
-the same cache line.
+the same cache line. Measure _cache line contention_ through #keyword[HITM]
+count in `perf c2c`.
+#keyword[Naive threading]: when #num threads > #num cores: thread creation
+overhead, context switching/scheduling overhead, cache locality degradation,
+lock contention.
+Solution: #keyword[thread pool]. Either split jobs equally between threads, or
+use shared job queue to enable work stealing.
+#keyword[Streaming]: pipeline with concurrent stages (assembly line). Good
+locality for code & temporary data, bad locality for input/output data.
+#keyword[SEDA]: Staged Event-Driven Architecture. Modular stages w/ pools and
+input queue per stage. Bottlenecks are explicit (full queue). Observable load -
+can react by changing queue length, #num threads per stage. Very flexible
+tuning, ut stages across threads hurt performance (cache locality).
+#keyword[Multi-processing]: no shared memory, *expensive* communication. Can
+use explicit shared memory, sockets, pipes.
+
+#module[Tools, Algorithms and Patterns]
+#keyword[Blocking algorithms]: involve locking on critical sections, causing
+other threads to block. If a thread has a lock and gets de-scheduled, every
+other thread wanting that lock must wait.
+#keyword[Non-blocking]: suspension of one thread cannot cause suspension of
+other threads. Uses atomic RMW without locking.
+#keyword[Lock-free]: at least one thread is guaranteed to progress.
+#keyword[Wait-free]: every thread is guaranteed to progress.
+#keyword[ABA Problem]: wrong assumption that `head` being the same in the CAS
+also means `head->next` is the same. This can lead to `head` being assigned
+an out-of-date `head->next` that may have been freed.
+
+#module[System Interfaces and Performance]
+#keyword[Syscall anatomy]: [user mode] store args in registers, syscall
+instr, [kernel mode] sanitize env, save state, execute handler, restore
+state, sys return instr, [user mode].
+#keyword[Buffered IPC]: #text(fill: green)[non-blocking], #text(fill: red)[2x
+data copies].
+#keyword[Unbuffered IPC]: #text(fill: red)[blocking], #text(fill: green)[1x
+data copies].
+#keyword[Partial walk cache]: cache partial page table traversals.
+#keyword[TLB shootdown]: when a PTE is modified (e.g. `munmap` or page
+downgrade), the kernel sends IPIs to every core with that
+address space active to flush their TLB entries. The interrupts cause pipeline
+flushes, and the core that issued this needs to wait until all flushes have
+occurred. Solutions: avoid downgrades, asynchronous downgrade syscalls, hw
+acceleration.
+#keyword[Virtualisation]: #text(fill: green)[reduce cost by sharing same
+physical machine, more secure than containers/processes]. #text(fill: red)[VM
+exceptions are *expensive*; long microcode to switch from guest/host,
+saves/restores several registers].
+#keyword[Virtual memory translation]: let hypervisor manage PTs
+(#keyword[shadow paging]); expensive vm-exits to manage guest PTs. Or use guest
+and host PWCs.
+#keyword[MMIO]: Use PCIe BARs (base addr registers), circular buffer in host
+memory and BARs configure queue changes.
+#keyword[Device driver models]: interrupt-driven, polling (using MMIO reads),
+hybrid (dynamically switch to polling if latency is low).
+#keyword[Device virtualisation models]: trap & emulate (*very expensive*),
+para-virtualised (map shared memory between VM & hypervisor, trapped MMIO
+access as doorbell signal), passthrough (map device BARs into VM & configure
+IOMMU, devices need one set of BARs per VM).
+#keyword[Non-blocking interfaces] avoid context switch & data copy. Can be
+asynchronous or event-based.
+#keyword[Asynchronous interfaces]: kernel signals end of operation.
+#keyword[Event-based interfaces]: express interest on ops on FDs. Poll kernel
+for available ops in event loop, e.g. `epoll` tells you when a socket is ready
+to read from.
+#keyword[Direct device assignment]: bypass kernel with user-mode MMIO, e.g.
+DPDK.
+
+#module[System Programming Models]
+#keyword[One-thread per task]: main thread spawns worker thread for each new
+connection. Thread creation is expensive (time + memory), spends lots of time
+context switching.
+#keyword[Worker pools]: #text(fill: green)[avoids cost of on0demand thread
+creation], #text(fill: red)[no clients processed when workers are blocked,
+still has context switch overhead if #num threads > #num CPUs].
+#keyword[Event-based]: pin one thread per core, use non-blocking IO, keep
+state machine to track each concurrent context. #text(fill: green)[no thread
+scheduling, minimal memory usage], #text(fill: red)[complicated to program].
+#keyword[Memcached]: in-memory key/value store. #text(fill: red)[calls to
+read/write incur copies, bad locality at high load (app. & network stack data &
+locks go across cores)].
+#keyword[IX]: NIC uses ECMP to steer packets to cores. VM with NIC passthrough,
+zero copy, syscall batching, end-to-end processing maximises cache locality.
+
+#module[Scale-Out Systems]
+#keyword[Energy proportionality]: ideally energy consumption #sym.prop
+utilization. Reality: substantial minimum cost + energy at low loads. Best
+value when hardware is off, or at max utilisation.
+Increasing utilisation does reduce cost but can easily violate SLO.
+#keyword[Elasticity]: ability to adapt to local changes, e.g. add/remove CPUs
+according to load.
+#keyword[Scale-out]: break application into concurrent components, define
+asynchronous communication protocols, deploy on different nodes, handle
+failures.
+#keyword[Microservices]: one service for each task, increase capacity by
+increasing instances. Complex management, distribution, VMs have expensive boot
+time. Can isolate tenants with VMs and isolate services using containers.
+#keyword[Serverless]: tenant only declares what to run, on certain events.
+Operator load-balances & auto-scales.
+#keyword[The standing problem]: starting and stopping serverless instances is
+expensive: container creation (setting up namespaces), service boot (runtime
+initialisation). Solution: *cache and prefetch*.
+#keyword[Function-as-a-service] (FaaS): tenant provides business logic and
+*trigger* stateless function. Tenants use separate VMs (security), one
+container + runtime per function. Limited VM/container/runtime configs, easier
+to predict, prefetch and reuse.
