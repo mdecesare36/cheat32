@@ -151,5 +151,45 @@ to resume with TCP fast open (TFO). Weak ciphersuites & compression banned.
 ClientHello includes public key, rest of handshake encrypted. ESNI optional.
 Makes passive proxies impossible, as server certificate cannot be sniffed.
 
-#module[HTTPS]
+#module[HTTP]
+#keyword[Response codes]: 2xx success, 3xx redirection, 4xx client error, 5xx
+server error. Rare response codes used for #keyword[C2] to evade IDS.
+Security issues: #keyword[HTTP proxy cache poison], #keyword[response
+splitting]: client accepts bogus responses over keepalive connection,
+#keyword[DNS spoofing].
+#keyword[HTTPS drawbacks]: ISPs cannot cache HTTPS traffic, ISDs have limited
+visibility.
+#keyword[SSL stripping]: MITM accepts HTTP connection and acts as proxy to
+HTTPS server. Countermeasure: HTTP header `Strict-Transport-Security` says load
+pages from that domain only over HTTPS in future. For first connection,
+browsers have list of websites that must be https (not scalable), or DANE can
+associate HSTS to DNSSEC.
+#keyword[Referrer header] leaks info; put sensitive data in POST body, use
+`Referrer-Policy: no-referrer|origin|same-origin|...`
+#keyword[DoH]: DNS over HTTPS. Provides integrity and confidentiality to DNS
+queries. DoT (DNS over TLS) too.
+
+#module[Server-side Security]
+Architectures: #keyword[CGI scripts], #keyword[server-side script],
+#keyword[fast CGI], #keyword[reverse proxy] (lean fast server handles static
+content, TLS termination & directs to application server).
+#keyword[Path traversal]: url input causes server to disclose unintended
+resource. Counter: `www` user for server with access only to public files. Web
+app process sandboxed with 'chroot jail'.
+#keyword[Remote file inclusion]: get server to run malicious php. Counter:
+whitelist of page names.
+#keyword[Server-side request forgery]: attacker gets server to access a
+resource, e.g. data exfiltration, port scanning. Counter: whitelist requests
+server-side app can isuse.
+#keyword[Command injection]: block forbidden patterns, whitelists, taint
+analysis.
+#keyword[Shellshock]: server copies http headers to env vars of bash to run CGI
+script. Malformed header causes code exeuction.
+#keyword[SQL injection]: `' OR '1' = '1`. Get schema:
+`SELECT table_schema, table_name, column_name FROM information_schema.columns`,
+using union: `UNION SELECT x,y,NULL from T`.
+Counter: input filtering, prepared statements (language-level), stored
+procedures, code analysis, IDS, programming framework.
+
+#module[Browser Security]
 
