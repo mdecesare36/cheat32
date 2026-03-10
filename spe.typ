@@ -161,13 +161,14 @@ loaded into cache.
 #keyword[MESI]: Modified, Exclusive, Shared, Invalid.
 #keyword[False sharing]: another control-flow hazard.
 
-#pagebreak()
+//#pagebreak()
+#linebreak()
 
 // Part 2
 #module[Multi-Core and Parallelism]
 #keyword[Amdahl's Law]:
 $
-"Speedup"(p,s) = 1 / ((1-p) + p/s)
+"Speedup"(p,s) = 1 div ((1-p) + p/s)
 $
 #keyword[Synchronisation primitives]: `std::mutex`, `std::unique_lock`,
 `std::lock_guard`, `std::counting_semaphore`, `std::binary_semaphore`,
@@ -200,7 +201,6 @@ other threads. Uses atomic RMW without locking.
 #keyword[ABA Problem]: wrong assumption that `head` being the same in the CAS
 also means `head->next` is the same. This can lead to `head` being assigned
 an out-of-date `head->next` that may have been freed.
-
 #module[System Interfaces and Performance]
 #keyword[Syscall anatomy]: [user mode] store args in registers, syscall
 instr, [kernel mode] sanitize env, save state, execute handler, restore
@@ -239,7 +239,6 @@ for available ops in event loop, e.g. `epoll` tells you when a socket is ready
 to read from.
 #keyword[Direct device assignment]: bypass kernel with user-mode MMIO, e.g.
 DPDK.
-
 #module[System Programming Models]
 #keyword[One-thread per task]: main thread spawns worker thread for each new
 connection. Thread creation is expensive (time + memory), spends lots of time
@@ -255,7 +254,6 @@ read/write incur copies, bad locality at high load (app. & network stack data &
 locks go across cores)].
 #keyword[IX]: NIC uses ECMP to steer packets to cores. VM with NIC passthrough,
 zero copy, syscall batching, end-to-end processing maximises cache locality.
-
 #module[Scale-Out Systems]
 #keyword[Energy proportionality]: ideally energy consumption #sym.prop
 utilization. Reality: substantial minimum cost + energy at low loads. Best
@@ -263,9 +261,7 @@ value when hardware is off, or at max utilisation.
 Increasing utilisation does reduce cost but can easily violate SLO.
 #keyword[Elasticity]: ability to adapt to local changes, e.g. add/remove CPUs
 according to load.
-#keyword[Scale-out]: break application into concurrent components, define
-asynchronous communication protocols, deploy on different nodes, handle
-failures.
+#keyword[Scale-out]: *handle failures*.
 #keyword[Microservices]: one service for each task, increase capacity by
 increasing instances. Complex management, distribution, VMs have expensive boot
 time. Can isolate tenants with VMs and isolate services using containers.
@@ -278,3 +274,44 @@ initialisation). Solution: *cache and prefetch*.
 *trigger* stateless function. Tenants use separate VMs (security), one
 container + runtime per function. Limited VM/container/runtime configs, easier
 to predict, prefetch and reuse.
+#module[Communication Mechanisms]
+HTTP REST + JSON most common solution.
+#keyword[RPCs]: remote procedure calls. Server API defined as function calls
+(usually asynchronous). Frameworks: gRPC, protobuf, ... Binary-based: more
+efficient to transfer & compress.
+#keyword[The standing problem]: RESTful code & RPC stubs transfer lots of data
+buffers. Lots of cycles spent on data transfer alone: allocate/free &
+send/receive buffers.
+#keyword[RDMA]: Remote DMA. Two types of primitives: stream (send/receive) &
+memory (read/write). Two modes: reliable & unreliable. #text(fill: green)[moves
+network stack into NIC; less CPU load], #text(fill: red)[hard to program]. OS
+needs to send virtual #sym.arrow.r physical memory translations to NIC. Paging
+application memory out requires telling NIC to invalidate its translations
+(expensive).
+#keyword[Tail latency]: key performance goal. Caused by transient overheads
+(lock contention, TLB misses, etc.) and app-level differences (e.g. get vs
+set). Utilisation #sym.arrow.b tail latency #sym.arrow.b, utilisation
+#sym.arrow.t costs #sym.arrow.b.
+#keyword[Load balancing]: distributing requests over resources. Can distribute
+over _time_, _data_. Scale: _cross-core_, _cross-machine_.
+#module[Queueing Theory]
+three main parameters define *service latency*: arrival distribution (Poisson),
+arrival assignment, service time distribution (ideally constant, realistically
+exponential).
+#keyword[Parameters]: single-queue vs multi-queue, FCFS vs processor sharing.
+#keyword[Goals]: low tail latency, #keyword[work conservation] (core never idle
+if there's work to do).
+#image("queues.png")
+#keyword[IX]: lower tail latency, 32xM/G/1/FCFS system. Perfect on
+constant/exponential service times. Designed to "narrow" exponential dist.
+HOL on bimodal service dist.
+#keyword[ZygOS]: scale-up, almost single-queue, supports large service
+dispersion, work-conserving, avoids HOL blocking.
+#keyword[R2P2]: scale-out, towards single queue for all service instances.
+Global queue when establishing connection, regular client/server connection
+after, doesn't rebalance long-lived connections, reduce tail latency due to
+overloaded nodes.
+#keyword[Load proportionality]: PEGASUS; monitor app metrics, use DVVFS to
+change core speed (power). #keyword[Scale-out] has large waste when nodes are
+underutilised: exploit elasticity. Microservices make it simple, serverless &
+FaaS make it efficient, FaaS make it adaptable.
