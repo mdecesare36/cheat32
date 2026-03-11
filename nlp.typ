@@ -99,7 +99,7 @@ RNNs better understand longer-range dependencies.
 #module[Language Models]
 #keyword[N-gram modelling]: find the most probable next word using
 $P(w_n | w_1^(n-1))$ by counting occurences. $N$-gram approximation:
-$approx P(w_n | w_(n-N-1)^(n-1))$
+$approx P(w_n | w_(n-N+1)^(n-1))$
 #keyword[Perplexity)] = $P(w_1,w_2,...,w_n)^(-1/n)$. We aim to minimise
 perplexity. Perplexity = $e^H$, where $H$ is CE loss.
 #keyword[Extrinsic] evaluation: choose LM that works best on downstream task.
