@@ -117,7 +117,7 @@ backward RNN. This allows the model to see into the future.
 another.
 #keyword[LSTMs]: cell states provide long-term memory that helps against
 vanishing/exploding gradient because (1) additive formula $arrow.r$ no repeated
-multiplicaiton and (2) forget gate allows model to choose when to preserve
+multiplication and (2) forget gate allows model to choose when to preserve
 and vanish gradients. $c_t = f_t dot.o c_(t-1) + i_t dot.o g_t$ and
 $h_t=o_t dot.o tanh c_t$, where $g_t = tanh(W x_t + W h_(t-1) + b)$ and
 $i_t, f_t, o_t = sigma(W x_t + W h_(t-1) + b)$.
